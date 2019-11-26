@@ -63,16 +63,20 @@ let update msg model =
                 let (Equation(lhs, rhs, env)) = model.problem
                 let currentAnswer = sprintf "%s = %d" (renderTerm 0 lhs) ans
                 let stake = (abs (eval (defaultArg env 0) lhs))
+                let feedback x =
+                    match model.settings.feedbackDuration with
+                    | 0 -> { x with messageToUser = None }, Cmd.none
+                    | n -> x, Cmd.ofSub(fun dispatch -> setTimeout n (thunk1 dispatch (UserMessage None)))
                 if ans = eval (defaultArg env 0) rhs then
                     match model.settings.sound with
                     | On | CheerOnly -> cheer()
                     | _ -> ()
-                    { model with currentAnswer = ""; problem = generate(); messageToUser = Some {| color = "Green"; msg = currentAnswer |}; score = model.score + stake * 100 }, Cmd.ofSub(fun dispatch -> setTimeout 1000 (thunk1 dispatch (UserMessage None)))
+                    { model with currentAnswer = ""; problem = generate(); messageToUser = Some {| color = "Green"; msg = currentAnswer |}; score = model.score + stake * 100 } |> feedback
                 else
                     match model.settings.sound with
                     | On | BombOnly -> bomb()
                     | _ -> ()
-                    { model with currentAnswer = ""; messageToUser = Some {| color = "Red"; msg = currentAnswer |}; score = model.score - stake * 100 }, Cmd.ofSub(fun dispatch -> setTimeout 1000 (thunk1 dispatch (UserMessage None)))
+                    { model with currentAnswer = ""; messageToUser = Some {| color = "Red"; msg = currentAnswer |}; score = model.score - stake * 100 } |> feedback
             | _ -> model, Cmd.none
     | Setting msg ->
         let settings = model.settings
