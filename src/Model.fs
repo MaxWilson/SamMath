@@ -38,6 +38,7 @@ let r x = 1 + (rand.Next x)
 let isSmall x =
     let x = abs x
     0 <= x && x <= 12 || x <= 100 && x % 10 = 0
+let isSmallButNonZero x = x <> 0 && isSmall x
 let generateSmallNumber() =
     let n =
         match r 10 with
@@ -77,17 +78,17 @@ let rec generatePermute depth constraint1 =
         | n -> Plus(N n, N (constraint1 - n))
     else
         let rec loop counter =
-            if counter >= 10 then N constraint1
+            if counter >= 20 then N constraint1
             else
                 let t =
                     match r 5 with
                     | 1 ->
-                        generateSmallWhere Plus true (fun candidate -> if constraint1 - candidate |> isSmall then Some (generatePermute (depth + 1) (constraint1 - candidate), 0) else None) constraint1
+                        generateSmallWhere Plus true (fun candidate -> if constraint1 - candidate |> isSmallButNonZero then Some (generatePermute (depth + 1) (constraint1 - candidate), 0) else None) constraint1
                     | 2 ->
-                        generateSmallWhere Minus false (fun candidate -> if candidate - constraint1 |> isSmall then Some (generatePermute (depth + 1) (candidate - constraint1), 0) else None) constraint1
+                        generateSmallWhere Minus false (fun candidate -> if candidate - constraint1 |> isSmallButNonZero then Some (generatePermute (depth + 1) (candidate - constraint1), 0) else None) constraint1
                     | 3 ->
-                        generateSmallWhere Times true (fun candidate -> if candidate <> 0 && candidate <> 1 && (constraint1 % candidate)|> isSmall && constraint1 / candidate |> isSmall then Some (generatePermute (depth + 1) (constraint1 / candidate), constraint1 % candidate) else None) constraint1
-                    | _ ->
+                        generateSmallWhere Times true (fun candidate -> if candidate <> 0 && candidate <> 1 && (constraint1 % candidate)|> isSmallButNonZero && constraint1 / candidate |> isSmallButNonZero then Some (generatePermute (depth + 1) (constraint1 / candidate), constraint1 % candidate) else None) constraint1
+                    | 4 ->
                         let candidate = generateSmallNumber()
                         let diff = (candidate * candidate - constraint1)
                         if isSmall diff then
@@ -96,6 +97,8 @@ let rec generatePermute depth constraint1 =
                             else
                                 Some(Minus(Square(generatePermute (depth+1) candidate), N diff))
                         else None
+                    | _ when depth > 1 -> Some (N constraint1)
+                    | _ -> None
                 match t with
                 | Some t -> t
                 | None -> loop (counter + 1)
