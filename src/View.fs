@@ -76,9 +76,9 @@ let view (g:Game) dispatch =
                 let maybeDispatch = if g.messageToUser.IsSome then ignore else dispatch
                 let keyButton label msg = btn label [onClick maybeDispatch msg]
                 yield! [for x in 1..9 -> keyButton (x.ToString()) (AnswerKey (x.ToString()))]
+                yield keyButton "Back" Backspace
                 yield keyButton "0" (AnswerKey "0")
                 yield keyButton "-" (AnswerKey "-")
-                yield keyButton "Back" Backspace
                 yield keyButton "ENTER" Complete
                 ]
             ]
