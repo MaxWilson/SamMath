@@ -13,6 +13,6 @@ let setting label options currentValue dispatch =
         span[ClassName "optionSpan"][
             for (value, label) in options ->
                 button[ClassName (if value = currentValue then "option selected" else "option");
-                        OnClick (delay1 dispatch (ChangeValue value))][str label]
+                        OnClick (thunk1 dispatch (ChangeValue value))][str label]
             ]
         ]

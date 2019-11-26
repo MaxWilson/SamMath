@@ -6,7 +6,6 @@ open Fable.Core.JsInterop
 open Fable.Import
 open Common
 open Model
-open Model.Enums
 open View
 
 let init _ = Game.Fresh(), Cmd.none
@@ -32,7 +31,7 @@ module Sounds =
         chooseRandom cheers |> play
     let bomb =
         let s = sound("Grenade Explosion-SoundBible.com-2100581469.mp3")
-        delay1 play s
+        fun () -> play s
 open Sounds
 
 [<Emit("setTimeout($1, $0)")>]
@@ -50,58 +49,33 @@ let update msg model =
         { model with showOptions = showOptions }, Cmd.none
     | Reset -> { Game.Fresh() with showOptions = model.showOptions }, Cmd.none
     | AnswerKey k ->
-        if model.showOptions && k = Enter then
-            model, Cmd.ofMsg ToggleOptions
-        elif model.messageToUser.IsSome || model.showOptions || not (Model.Enums.keysOf model.settings.mathBase |> Array.exists ((=) k)) then
-            model, Cmd.none
-        else
-            match k with
-            | Number key ->
-                let model = { model with currentAnswer = model.currentAnswer + key }
-                model, if model.settings.autoEnter && model.currentAnswer.Length = model.problem.answer.Length then Cmd.ofMsg (AnswerKey Enter) else Cmd.none
-            | Backspace ->
-                { model with currentAnswer = model.currentAnswer.Substring(0, max 0 <| model.currentAnswer.Length - 1) }, Cmd.none
-            | Enter ->
-                let onCorrect =
-                    match model.settings.sound with
-                    | On | CheerOnly -> cheer
-                    | _ -> ignore
-                let onIncorrect =
-                    match model.settings.sound with
-                    | On | BombOnly -> bomb
-                    | _ -> ignore
-                let feedback color =
-                    if model.settings.feedbackDuration > 0 then
-                       Cmd.ofSub(fun d ->
-                            d <| UserMessage(Some {| color = color; msg = sprintf "%s = %s" model.problem.question model.problem.answer |})
-                            setTimeout model.settings.feedbackDuration (fun () -> d (UserMessage None))
-                            )
-                    else
-                        Cmd.none
-                match Game.Evaluate model with
-                | Correct, m ->
-                    onCorrect()
-                    m |> Game.nextProblem, feedback "green"
-                | Incorrect, m ->
-                    onIncorrect()
-                    m |> Game.nextProblem, feedback "red"
-                | NotReady, m ->
-                    m, Cmd.none
-            | HintKey ->
-                { model with showHints = not model.showHints }, Cmd.none
+        if k = "-" || (System.Int32.TryParse(k) |> fst) then
+            { model with currentAnswer = model.currentAnswer + k }, Cmd.none
+        else model, Cmd.none
+    | Backspace ->
+        { model with currentAnswer = model.currentAnswer.Substring(0, max 0 (model.currentAnswer.Length - 1)) }, Cmd.none
+    | Complete ->
+        match System.Int32.TryParse model.currentAnswer with
+        | true, ans ->
+            let (Equation(lhs, rhs, env)) = model.problem
+            let currentAnswer = sprintf "%s = %d" (renderTerm 0 lhs) ans
+            if ans = eval (defaultArg env 0) rhs then
+                match model.settings.sound with
+                | On | CheerOnly -> cheer()
+                | _ -> ()
+                { model with currentAnswer = ""; problem = generate(); messageToUser = Some {| color = "Green"; msg = currentAnswer |}; score = model.score + ans * 100 }, Cmd.ofSub(fun dispatch -> setTimeout 1000 (thunk1 dispatch (UserMessage None)))
+            else
+                match model.settings.sound with
+                | On | BombOnly -> bomb()
+                | _ -> ()
+                { model with currentAnswer = ""; messageToUser = Some {| color = "Red"; msg = currentAnswer |}; score = model.score - ans * 100 }, Cmd.ofSub(fun dispatch -> setTimeout 1000 (thunk1 dispatch (UserMessage None)))
+        | _ -> model, Cmd.none
     | Setting msg ->
         let settings = model.settings
         let settings' =
             match msg with
             | SettingChange.Sound v -> { settings with sound = v }
-            | SettingChange.AutoEnter v -> { settings with autoEnter = v }
-            | SettingChange.ProgressiveDifficulty v -> { settings with progressiveDifficulty = v }
-            | SettingChange.MathBase v -> { settings with mathBase = v }
-            | SettingChange.Operation v -> { settings with mathType = v }
-            | SettingChange.Maximum v -> { settings with size = v }
             | SettingChange.FeedbackDuration v -> { settings with feedbackDuration = v }
         match msg with
-        | Operation _ | Maximum _ | MathBase _ ->
-            { model with settings = settings'; cells = Model.ComputeHints settings'; reviewList = [] } |> Game.nextProblem, Cmd.none
         | _ ->
             { model with settings = settings'; }, Cmd.none
