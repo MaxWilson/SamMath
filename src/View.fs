@@ -66,11 +66,19 @@ let view (g:Game) dispatch =
         if g.showOptions then
             [viewOptions g.settings dispatch]
         else [
-            yield h3[ClassName "scoreDisplay"][str <| sprintf "Score: %d" g.score]
-            yield
-                if g.messageToUser.IsSome then
-                    div[ClassName "numDisplay"; Style[Color g.messageToUser.Value.color]][str g.messageToUser.Value.msg]
-                else
-                    div[ClassName "numDisplay"][str (sprintf "%s = %s" (Game.CurrentProblem g) (if g.currentAnswer = "" then "??" else g.currentAnswer))]
+            h3[ClassName "scoreDisplay"][str <| sprintf "Score: %d" g.score]
+
+            (if g.messageToUser.IsSome then
+                div[ClassName "numDisplay"; Style[Color g.messageToUser.Value.color]][str g.messageToUser.Value.msg]
+             else
+                div[ClassName "numDisplay"][str (sprintf "%s = %s" (Game.CurrentProblem g) (if g.currentAnswer = "" then "??" else g.currentAnswer))])
+            div[ClassName "keyList"][
+                let maybeDispatch = if g.messageToUser.IsSome then ignore else dispatch
+                let keyButton label msg = btn label [onClick maybeDispatch msg]
+                yield! [for x in 1..9 -> keyButton (x.ToString()) (AnswerKey (x.ToString()))]
+                yield keyButton "Back" Backspace
+                yield keyButton "0" (AnswerKey "0")
+                yield keyButton "ENTER" Complete
+                ]
             ]
         )

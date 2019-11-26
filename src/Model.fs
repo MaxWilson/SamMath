@@ -44,7 +44,7 @@ let generateSmallNumber() =
         | x when x <= 2 -> 0
         | x when x <= 7 -> r 12
         | _ -> r 10 * 10
-    if r 2 = 1 then n else - n
+    if r 3 = 1 then n else - n
 let eval env =
     let rec eval = function
         | N n -> n
@@ -59,11 +59,14 @@ let eval env =
 let generateSmallWhere ctor commutative counterpart fallback =
     let candidate = generateSmallNumber()
     match counterpart candidate with
-    | Some term ->
-        if commutative = false || r 2 = 1 then
-            Some <| ctor(N candidate, term)
+    | Some (term, leftover) ->
+        let inner =
+            if commutative = false || r 2 = 1 then
+                ctor(N candidate, term)
+            else ctor(term, N candidate)
+        if leftover = 0 then Some inner
         else
-            Some <| ctor(term, N candidate)
+            Some(Plus(inner, N leftover))
     | None ->
         None
 
@@ -77,13 +80,13 @@ let rec generatePermute depth constraint1 =
             if counter >= 10 then N constraint1
             else
                 let t =
-                    match r 4 with
+                    match r 5 with
                     | 1 ->
-                        generateSmallWhere Plus true (fun candidate -> if constraint1 - candidate |> isSmall then Some (generatePermute (depth + 1) (constraint1 - candidate)) else None) constraint1
+                        generateSmallWhere Plus true (fun candidate -> if constraint1 - candidate |> isSmall then Some (generatePermute (depth + 1) (constraint1 - candidate), 0) else None) constraint1
                     | 2 ->
-                        generateSmallWhere Minus false (fun candidate -> if candidate - constraint1 |> isSmall then Some (generatePermute (depth + 1) (candidate - constraint1)) else None) constraint1
+                        generateSmallWhere Minus false (fun candidate -> if candidate - constraint1 |> isSmall then Some (generatePermute (depth + 1) (candidate - constraint1), 0) else None) constraint1
                     | 3 ->
-                        generateSmallWhere Times true (fun candidate -> if candidate <> 0 && candidate <> 1 && constraint1 % candidate = 0 && constraint1 / candidate |> isSmall then Some (generatePermute (depth + 1) (constraint1 / candidate)) else None) constraint1
+                        generateSmallWhere Times true (fun candidate -> if candidate <> 0 && candidate <> 1 && (constraint1 % candidate)|> isSmall && constraint1 / candidate |> isSmall then Some (generatePermute (depth + 1) (constraint1 / candidate), constraint1 % candidate) else None) constraint1
                     | _ ->
                         let candidate = generateSmallNumber()
                         let diff = (candidate * candidate - constraint1)
@@ -98,7 +101,7 @@ let rec generatePermute depth constraint1 =
                 | None -> loop (counter + 1)
         loop 0
 let generate() =
-    let y = generateSmallNumber()
+    let y = match (r 12) + (r 12) - 12 with 0 -> generateSmallNumber() | n -> n // rarely generate 0s
     let coefficient = match generateSmallNumber() with 0 -> 1 | n -> n
     let mutable obfuscated = None // only want one variable in the equation
     let rec obfuscate term =
@@ -124,6 +127,7 @@ let rec renderTerm parentPrecedence term =
     | N n -> n.ToString()
     | Plus(t1, t2) -> sprintf "%s + %s" (renderTerm 1 t1) (renderTerm 1 t2) |> addParens 1
     | Minus(t1, t2) -> sprintf "%s - %s" (renderTerm 1 t1) (renderTerm 1 t2) |> addParens 1
+    | Times(t1, N t2) when t2 < 0 -> sprintf "%s (%d)" (renderTerm 2 t1) t2 |> addParens 2
     | Times(N t1, N t2) -> sprintf "%d ⨯ %d" t1 t2 |> addParens 2
     | Times(t1, t2) -> sprintf "%s %s" (renderTerm 2 t1) (renderTerm 2 t2) |> addParens 2
     | Divide(t1, t2) -> sprintf "%s / %s" (renderTerm 3 t1) (renderTerm 3 t2) |> addParens 3
