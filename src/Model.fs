@@ -34,18 +34,17 @@ type Term = | N of int | Plus of Term * Term | Times of Term * Term | Divide of 
 type Equation = Equation of lhs:Term * rhs: Term * variableValue: int option
 
 let rand = System.Random()
-let r x = 1 + rand.Next x
+let r x = 1 + (rand.Next x)
 let isSmall x =
     let x = abs x
     0 <= x && x <= 12 || x <= 100 && x % 10 = 0
 let generateSmallNumber() =
-    match r 10 with
-    | x when x <= 2 -> 0
-    | x when x <= 4 -> r 5
-    | x when x <= 7 -> r 12
-    | _ -> r 10 * 10
-let generateSmallInteger() =
-    if r 2 = 1 then generateSmallNumber() else - (generateSmallNumber())
+    let n =
+        match r 10 with
+        | x when x <= 2 -> 0
+        | x when x <= 7 -> r 12
+        | _ -> r 10 * 10
+    if r 2 = 1 then n else - n
 let eval env =
     let rec eval = function
         | N n -> n
@@ -82,7 +81,7 @@ let rec generatePermute depth constraint1 =
                     | 1 ->
                         generateSmallWhere Plus true (fun candidate -> if constraint1 - candidate |> isSmall then Some (generatePermute (depth + 1) (constraint1 - candidate)) else None) constraint1
                     | 2 ->
-                        generateSmallWhere Minus false (fun candidate -> if constraint1 + candidate |> isSmall then Some (generatePermute (depth + 1) (constraint1 + candidate)) else None) constraint1
+                        generateSmallWhere Minus false (fun candidate -> if candidate - constraint1 |> isSmall then Some (generatePermute (depth + 1) (candidate - constraint1)) else None) constraint1
                     | 3 ->
                         generateSmallWhere Times true (fun candidate -> if candidate <> 0 && candidate <> 1 && constraint1 % candidate = 0 && constraint1 / candidate |> isSmall then Some (generatePermute (depth + 1) (constraint1 / candidate)) else None) constraint1
                     | _ ->
@@ -98,10 +97,9 @@ let rec generatePermute depth constraint1 =
                 | Some t -> t
                 | None -> loop (counter + 1)
         loop 0
-
 let generate() =
-    let y = r 12
-    let coefficient = match generateSmallInteger() with 0 -> 1 | n -> n
+    let y = generateSmallNumber()
+    let coefficient = match generateSmallNumber() with 0 -> 1 | n -> n
     let mutable obfuscated = None // only want one variable in the equation
     let rec obfuscate term =
         if obfuscated.IsSome then term
@@ -126,6 +124,7 @@ let rec renderTerm parentPrecedence term =
     | N n -> n.ToString()
     | Plus(t1, t2) -> sprintf "%s + %s" (renderTerm 1 t1) (renderTerm 1 t2) |> addParens 1
     | Minus(t1, t2) -> sprintf "%s - %s" (renderTerm 1 t1) (renderTerm 1 t2) |> addParens 1
+    | Times(N t1, N t2) -> sprintf "%d ⨯ %d" t1 t2 |> addParens 2
     | Times(t1, t2) -> sprintf "%s %s" (renderTerm 2 t1) (renderTerm 2 t2) |> addParens 2
     | Divide(t1, t2) -> sprintf "%s / %s" (renderTerm 3 t1) (renderTerm 3 t2) |> addParens 3
     | Square t -> sprintf "%s²" (renderTerm 4 t) |> addParens 4

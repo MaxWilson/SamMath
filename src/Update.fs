@@ -55,21 +55,25 @@ let update msg model =
     | Backspace ->
         { model with currentAnswer = model.currentAnswer.Substring(0, max 0 (model.currentAnswer.Length - 1)) }, Cmd.none
     | Complete ->
-        match System.Int32.TryParse model.currentAnswer with
-        | true, ans ->
-            let (Equation(lhs, rhs, env)) = model.problem
-            let currentAnswer = sprintf "%s = %d" (renderTerm 0 lhs) ans
-            if ans = eval (defaultArg env 0) rhs then
-                match model.settings.sound with
-                | On | CheerOnly -> cheer()
-                | _ -> ()
-                { model with currentAnswer = ""; problem = generate(); messageToUser = Some {| color = "Green"; msg = currentAnswer |}; score = model.score + ans * 100 }, Cmd.ofSub(fun dispatch -> setTimeout 1000 (thunk1 dispatch (UserMessage None)))
-            else
-                match model.settings.sound with
-                | On | BombOnly -> bomb()
-                | _ -> ()
-                { model with currentAnswer = ""; messageToUser = Some {| color = "Red"; msg = currentAnswer |}; score = model.score - ans * 100 }, Cmd.ofSub(fun dispatch -> setTimeout 1000 (thunk1 dispatch (UserMessage None)))
-        | _ -> model, Cmd.none
+        match model.messageToUser with
+        | Some _ -> { model with messageToUser = None}, Cmd.Empty
+        | None ->
+            match System.Int32.TryParse model.currentAnswer with
+            | true, ans ->
+                let (Equation(lhs, rhs, env)) = model.problem
+                let currentAnswer = sprintf "%s = %d" (renderTerm 0 lhs) ans
+                let stake = (abs (eval (defaultArg env 0) lhs))
+                if ans = eval (defaultArg env 0) rhs then
+                    match model.settings.sound with
+                    | On | CheerOnly -> cheer()
+                    | _ -> ()
+                    { model with currentAnswer = ""; problem = generate(); messageToUser = Some {| color = "Green"; msg = currentAnswer |}; score = model.score + stake * 100 }, Cmd.ofSub(fun dispatch -> setTimeout 1000 (thunk1 dispatch (UserMessage None)))
+                else
+                    match model.settings.sound with
+                    | On | BombOnly -> bomb()
+                    | _ -> ()
+                    { model with currentAnswer = ""; messageToUser = Some {| color = "Red"; msg = currentAnswer |}; score = model.score - stake * 100 }, Cmd.ofSub(fun dispatch -> setTimeout 1000 (thunk1 dispatch (UserMessage None)))
+            | _ -> model, Cmd.none
     | Setting msg ->
         let settings = model.settings
         let settings' =
