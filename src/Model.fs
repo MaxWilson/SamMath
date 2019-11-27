@@ -134,6 +134,7 @@ let rec renderTerm parentPrecedence term =
     | Times(N t1, N t2) -> sprintf "%d ⨯ %d" t1 t2 |> addParens 2
     | Times(t1, t2) -> sprintf "%s %s" (renderTerm 2 t1) (renderTerm 2 t2) |> addParens 2
     | Divide(t1, t2) -> sprintf "%s / %s" (renderTerm 3 t1) (renderTerm 3 t2) |> addParens 3
+    | Square(N n) when n < 0 -> sprintf "(%d)²" n
     | Square t -> sprintf "%s²" (renderTerm 4 t) |> addParens 4
     | Variable -> "x"
 let renderEquation (Equation(lhs, rhs, env)) =
